@@ -2,6 +2,9 @@
 require('dotenv').config();
 const express = require("express");
 const bodyParser = require("body-parser");
+const path = require('path')
+require('dotenv').config({path:path.resolve(__dirname,'./.env')})
+const connectDB = require("./config/db");
 const ejs = require("ejs");
 const mongoose = require('mongoose');
 const session = require('express-session');
@@ -10,7 +13,7 @@ const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require('passport-google-oauth20').Strategy; // Google OAuth 2.0
 const findOrCreate = require('mongoose-findorcreate'); // findOrCreate
 
-
+connectDB();
 const app = express();
 app.use(express.static("public"));
 app.set('view engine', 'ejs');
@@ -27,15 +30,14 @@ saveUninitialized: false
 app.use(passport.initialize());
 app.use(passport.session());
 
-mongoose.connect('mongodb://127.0.0.1:27017/UserDb', {useNewUrlParser: true, useUnifiedTopology: true});
 
 
 //Create a new user schema
 const userSchema = new mongoose.Schema( {
-    email: String,
+    email:  { type: String, unique: true },
     password: String,
     googleId: String,
-    secret: String
+    secret: [String]
     });
 
 // Set up passport local mongoose
@@ -74,9 +76,9 @@ passport.use(new GoogleStrategy({
   },
   function(accessToken, refreshToken, profile, cb) {
     
-    User.findOrCreate({ googleId: profile.id }, function (err, user) {
-      return cb(err, user);
-    });
+    User.findOrCreate({ username: profile.displayName, googleId: profile.id }, function (err, user) {
+return cb(err, user);
+});
   }
 ));
 
@@ -139,7 +141,8 @@ app.get("/submit", function(req, res){
         User.findById(req.user.id)
           .then((foundUser) => {
             if (foundUser) {
-              foundUser.secret = submittedSecret;
+              // foundUser.secret = submittedSecret;
+               foundUser.secret.push(submittedSecret);
               return foundUser.save();
             }
             
@@ -173,6 +176,7 @@ app.post("/register", function(req, res){
 
         });
     });
+  
 
 // Post request for login
 
